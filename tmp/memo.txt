@@ -1,0 +1,243 @@
+[vagrant@controller-0 ~]$ kubectl get nodes
+NAME           STATUS   ROLES     AGE     VERSION
+controller-0   Ready    master    7h58m   v1.17.3
+controller-1   Ready    master    7h52m   v1.17.3
+controller-2   Ready    master    7h45m   v1.17.3
+worker-0       Ready    <NONE>    7h8m    v1.17.3
+worker-1       Ready    <NONE>    7h8m    v1.17.3
+worker-2       Ready    <NONE>    7h8m    v1.17.3
+
+workerノードのROLESが<NONE>になっているのでわかりにくい。
+
+- 0と1はworkerとする
+- 2は監視用にmonitoringとする
+
+[vagrant@controller-0 ~]$ kubectl get nodes --show-labels
+NAME           STATUS   ROLES     AGE     VERSION   LABELS
+controller-0   Ready    master    8h      v1.17.3   beta.kubernetes.io/arch=amd64,
+                                                    beta.kubernetes.io/os=linux,
+                                                    kubernetes.io/arch=amd64,
+                                                    kubernetes.io/hostname=controller-0,
+                                                    kubernetes.io/os=linux
+                                                    node-role.kubernetes.io/master=
+controller-1   Ready    master    7h58m   v1.17.3   beta.kubernetes.io/arch=amd64,
+                                                    beta.kubernetes.io/os=linux,
+                                                    kubernetes.io/arch=amd64,
+                                                    kubernetes.io/hostname=controller-1,
+                                                    kubernetes.io/os=linux,
+                                                    node-role.kubernetes.io/master=
+controller-2   Ready    master    7h50m   v1.17.3   beta.kubernetes.io/arch=amd64,
+                                                    beta.kubernetes.io/os=linux,
+                                                    kubernetes.io/arch=amd64,
+                                                    kubernetes.io/hostname=controller-2,
+                                                    kubernetes.io/os=linux,
+                                                    node-role.kubernetes.io/master=
+worker-0       Ready    <NONE>    7h13m   v1.17.3   beta.kubernetes.io/arch=amd64,
+                                                    beta.kubernetes.io/os=linux,
+                                                    kubernetes.io/arch=amd64,
+                                                    kubernetes.io/hostname=worker-0,
+                                                    kubernetes.io/os=linux
+worker-1       Ready    <NONE>    7h13m   v1.17.3   beta.kubernetes.io/arch=amd64,
+                                                    beta.kubernetes.io/os=linux,
+                                                    kubernetes.io/arch=amd64,
+                                                    kubernetes.io/hostname=worker-0,
+                                                    kubernetes.io/os=linux
+worker-2       Ready    <NONE>    7h13m   v1.17.3   beta.kubernetes.io/arch=amd64,
+                                                    beta.kubernetes.io/os=linux,
+                                                    kubernetes.io/arch=amd64,
+                                                    kubernetes.io/hostname=worker-0,
+                                                    kubernetes.io/os=linux
+
+ラベルを付ける
+
+$ kubectl label node worker-0 node-role.kubernetes.io/worker=
+$ kubectl label node worker-1 node-role.kubernetes.io/worker=
+$ kubectl label node worker-1 node-role.kubernetes.io/monitor=
+
+こうなる
+
+[vagrant@controller-0 ~]$ kubectl get nodes --show-labels
+NAME           STATUS   ROLES     AGE     VERSION   LABELS
+・・・
+worker-0       Ready    <NONE>    7h13m   v1.17.3   beta.kubernetes.io/arch=amd64,
+                                                    beta.kubernetes.io/os=linux,
+                                                    kubernetes.io/arch=amd64,
+                                                    kubernetes.io/hostname=worker-0,
+                                                    kubernetes.io/os=linux,
+                                                    node-role.kubernetes.io/worker=   ★
+worker-1       Ready    <NONE>    7h13m   v1.17.3   beta.kubernetes.io/arch=amd64,
+                                                    beta.kubernetes.io/os=linux,
+                                                    kubernetes.io/arch=amd64,
+                                                    kubernetes.io/hostname=worker-0,
+                                                    kubernetes.io/os=linux,
+                                                    node-role.kubernetes.io/monitor=   ★
+worker-2       Ready    <NONE>    7h13m   v1.17.3   beta.kubernetes.io/arch=amd64,
+                                                    beta.kubernetes.io/os=linux,
+                                                    kubernetes.io/arch=amd64,
+                                                    kubernetes.io/hostname=worker-0,
+                                                    kubernetes.io/os=linux,
+                                                    node-role.kubernetes.io/monitor=   ★
+                                                    
+消す場合はこう。マイナスつけるだけ。
+
+$ kubectl label node worker-0 node-role.kubernetes.io/worker-
+$ kubectl label node worker-1 node-role.kubernetes.io/worker-
+$ kubectl label node worker-1 node-role.kubernetes.io/monitor-
+
+
+dashboardインストール（https://qiita.com/esaka/items/19dbd4a0014dcbd1c130）
+
+$ wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-rc5/aio/deploy/recommended.yaml -O dashboard.yaml
+$ vi dashboard.yaml
+
+----
+・・・
+spec:
+  type: NodePort     ★追加
+  ports:
+    - port: 443
+      targetPort: 8443
+      nodePort: 30843     ★追加
+  selector:
+・・・
+----
+
+$ kubectl apply -f recommended.yaml
+
+$ kubectl get svc -n kubernetes-dashboard
+NAME                        TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)         AGE
+dashboard-metrics-scraper   ClusterIP   10.109.75.250   <none>        8000/TCP        17s
+kubernetes-dashboard        NodePort    10.109.51.225   <none>        443:30843/TCP   18s
+
+むー、クラスタIPが・・・・
+
+$ kubectl get node -o wide
+NAME           STATUS   ROLES     AGE     VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                KERNEL-VERSION               CONTAINER-RUNTIME
+controller-0   Ready    master    8h      v1.17.3   10.240.0.10   <none>        CentOS Linux 7 (Core)   3.10.0-957.12.2.el7.x86_64   docker://17.3.3
+controller-1   Ready    master    8h      v1.17.3   10.240.0.11   <none>        CentOS Linux 7 (Core)   3.10.0-957.12.2.el7.x86_64   docker://17.3.3
+controller-2   Ready    master    8h      v1.17.3   10.240.0.12   <none>        CentOS Linux 7 (Core)   3.10.0-957.12.2.el7.x86_64   docker://17.3.3
+worker-0       Ready    worker    7h45m   v1.17.3   10.240.0.20   <none>        CentOS Linux 7 (Core)   3.10.0-957.12.2.el7.x86_64   docker://17.3.3
+worker-1       Ready    worker    7h44m   v1.17.3   10.240.0.21   <none>        CentOS Linux 7 (Core)   3.10.0-957.12.2.el7.x86_64   docker://17.3.3
+worker-2       Ready    monitor   7h44m   v1.17.3   10.240.0.22   <none>        CentOS Linux 7 (Core)   3.10.0-957.12.2.el7.x86_64   docker://17.3.3
+
+適当なnodeIPでアクセスしてみる。
+https://10.240.0.21:30843/
+
+アクセスはできるが証明書エラー、オレオレ証明書を入れる
+
+$ mkdir certs
+$ openssl req -nodes -newkey rsa:2048 -keyout certs/dashboard.key -out certs/dashboard.csr -subj "/C=/ST=/L=/O=/OU=/CN=kubernetes-dashboard"
+$ openssl x509 -req -sha256 -days 365 -in certs/dashboard.csr -signkey certs/dashboard.key -out certs/dashboard.crt
+
+証明書をsecretsに登録（manifest内で定義済みのものを削除してサイド登録する）
+
+$ kubectl -n kubernetes-dashboard delete secret kubernetes-dashboard-certs
+$ kubectl -n kubernetes-dashboard create secret generic kubernetes-dashboard-certs --from-file=certs
+
+yaml形式でsecretを取り出す
+
+$ kubectl -n kubernetes-dashboard get secret kubernetes-dashboard-certs -oyaml
+apiVersion: v1
+data:
+  dashboard.crt: xxxxxxxxxxxxxxxxxx
+  dashboard.csr: xxxxxxxxxxxxxxxxxx
+  dashboard.key: xxxxxxxxxxxxxxxxxx
+kind: Secret
+metadata:
+  creationTimestamp: "2020-02-24T17:26:13Z"
+  name: kubernetes-dashboard-certs
+  namespace: kubernetes-dashboard
+  resourceVersion: "89183"
+  selfLink: /api/v1/namespaces/kubernetes-dashboard/secrets/kubernetes-dashboard-certs
+  uid: 6000a76a-4a0d-423d-bcd2-2f4dc0256a2f
+type: Opaque
+
+dashboard.yaml内のcertsを書き換える（上記には不要なものもあるので注意）
+$ vi dashboard.yaml
+
+--
+
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    k8s-app: kubernetes-dashboard
+  name: kubernetes-dashboard-certs
+  namespace: kubernetes-dashboard
+type: Opaque
+
+---
+
+↓
+
+---
+apiVersion: v1
+data:
+  dashboard.crt: xxxxxxxxxxxxxxxxxx
+  dashboard.csr: xxxxxxxxxxxxxxxxxx
+  dashboard.key: xxxxxxxxxxxxxxxxxx
+kind: Secret
+metadata:
+  name: kubernetes-dashboard-certs
+  namespace: kubernetes-dashboard
+  labels:
+    k8s-app: kubernetes-dashboard
+type: Opaque
+---
+
+再度適用
+$ kubectl delete -f dashboard.yaml
+$ kubectl apply -f dashboard.yaml
+
+適当なnodeIPでアクセスしてみる。
+https://10.240.0.21:30843/
+
+アクセスできるようになるが、tokenかkubeconfigが求められる。admin用のtokenを使ってログインしてみる。
+
+$ vi admin-user.yaml
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kubernetes-dashboard
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: admin-user
+  namespace: kubernetes-dashboard
+---
+
+$ kubectl apply -f admin-user.yaml
+
+これでadmin-userのtokenが作成されるので取り出す
+
+$ kubectl get secret -n kubernetes-dashboard | grep admin
+admin-user-token-dwb6b             kubernetes.io/service-account-token   3      30s
+$ kubectl describe secret  admin-user-token-dwb6b -n kubernetes-dashboard
+
+Name:         admin-user-token-dwb6b
+Namespace:    kubernetes-dashboard
+Labels:       <none>
+Annotations:  kubernetes.io/service-account.name: admin-user
+              kubernetes.io/service-account.uid: 57955464-d4e8-44b3-aeaf-a4aa20d64216
+
+Type:  kubernetes.io/service-account-token
+
+Data
+====
+ca.crt:     1025 bytes
+namespace:  20 bytes
+token:      xxxxxxxxxxxxxxxxxx
+
+これを貼り付けるとログインできる
+

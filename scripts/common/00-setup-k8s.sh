@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+KUBERNETES_VERSION=1.17.3
+DOCKER_VERSION=19.03.4
+CONTAINERD_VERSION=1.2.10
+
 # disable swap off
 sudo swapoff -a
 #sudo sed -i '/ swap / s/^\\(.*\\)$/#\\1/g' /etc/fstab
@@ -21,7 +25,7 @@ exclude=kube*
 EOF
 
 # install kubeadm, kubelet, kubectl
-sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+sudo yum install -y kubelet-${KUBERNETES_VERSION} kubeadm-${KUBERNETES_VERSION} kubectl-${KUBERNETES_VERSION} --disableexcludes=kubernetes
 
 # enable kubelet
 sudo systemctl enable --now kubelet
@@ -36,14 +40,14 @@ sudo sysctl --system
 # install docker
 sudo yum install -y yum-utils device-mapper-persistent-data lvm2
 sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-VERSION=$(yum list docker-ce --showduplicates | sort -r | grep 17.03 | head -1 | awk '{print $2}')
-sudo yum install -y --setopt=obsoletes=0 docker-ce-$VERSION docker-ce-selinux-$VERSION
+#VERSION=$(yum list docker-ce --showduplicates | sort -r | grep 17.03 | head -1 | awk '{print $2}')
+sudo yum install -y --setopt=obsoletes=0 docker-ce-$DOCKER_VERSION docker-ce-cli-$DOCKER_VERSION containerd.io-${CONTAINERD_VERSION}
 sudo systemctl enable docker && sudo systemctl start docker
 sudo usermod -aG docker vagrant
 
 # cgoup
 sudo mkdir -p /etc/docker
-sudo cat > /etc/docker/daemon.json <<'EOF'
+cat <<'EOF' | sudo tee -a /etc/docker/daemon.json
 {
   "exec-opts": ["native.cgroupdriver=systemd"],
   "log-driver": "json-file",
