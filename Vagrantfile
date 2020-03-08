@@ -23,18 +23,6 @@ Vagrant.configure("2") do |config|
       end
   end
 
-  config.vm.define "nfs-0" do |c|
-      c.vm.hostname = "nfs-0"
-      c.vm.network "private_network", ip: "10.240.0.30"
-
-      #c.vm.provision :shell, :path => "scripts/common/00-setup-initial.sh"
-      c.vm.provision :shell, :path => "scripts/nfs/setup-nfs.sh"
-
-      c.vm.provider "virtualbox" do |vb|
-        vb.memory = "256"
-      end
-  end
-
   (0..2).each do |n|
     config.vm.define "controller-#{n}" do |c|
         c.vm.hostname = "controller-#{n}"
@@ -62,7 +50,6 @@ Vagrant.configure("2") do |config|
 
         c.vm.provision :shell, :path => "scripts/common/00-setup-initial.sh"
         c.vm.provision :shell, :path => "scripts/common/00-setup-k8s.sh"
-        c.vm.provision :shell, :path => "scripts/worker/setup-nfs.sh"
     end
   end
 
